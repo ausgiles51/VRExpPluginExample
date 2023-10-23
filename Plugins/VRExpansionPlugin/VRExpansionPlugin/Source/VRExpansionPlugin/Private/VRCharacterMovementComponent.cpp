@@ -77,7 +77,7 @@ namespace CharacterMovementComponentStatics
 	static const FName CrouchTraceName = FName(TEXT("CrouchTrace"));
 	static const FName ImmersionDepthName = FName(TEXT("MovementComp_Character_ImmersionDepth"));
 
-	static float fRotationCorrectionThreshold = 0.02f;
+	static float fRotationCorrectionThreshold = 0.1f;
 	FAutoConsoleVariableRef CVarRotationCorrectionThreshold(
 		TEXT("vre.RotationCorrectionThreshold"),
 		fRotationCorrectionThreshold,
@@ -649,7 +649,8 @@ void UVRCharacterMovementComponent::ServerMove_PerformMovement(const FCharacterN
 	// Validate move only after old and first dual portion, after all moves are completed.
 	if (MoveData.NetworkMoveType == FCharacterNetworkMoveData::ENetworkMoveType::NewMove)
 	{
-		ServerMoveHandleClientErrorVR(ClientTimeStamp, DeltaTime, ClientAccel, MoveData.Location, ClientControlRotation.Yaw, MoveData.MovementBase, MoveData.MovementBaseBoneName, MoveData.MovementMode);
+		ServerMoveHandleClientErrorVR(ClientTimeStamp, DeltaTime, ClientAccel, MoveData.Location, ClientControlRotation, MoveData.MovementBase, MoveData.MovementBaseBoneName, MoveData.MovementMode);
+		//ServerMoveHandleClientErrorVR(ClientTimeStamp, DeltaTime, ClientAccel, MoveData.Location, ClientControlRotation.Yaw, MoveData.MovementBase, MoveData.MovementBaseBoneName, MoveData.MovementMode);
 		//ServerMoveHandleClientError(ClientTimeStamp, DeltaTime, ClientAccel, MoveData.Location, MoveData.MovementBase, MoveData.MovementBaseBoneName, MoveData.MovementMode);
 	}
 }
@@ -4180,7 +4181,7 @@ void UVRCharacterMovementComponent::ClientAdjustPositionVR_Implementation
 	ClientData->bUpdatePosition = true;
 }
 
-bool UVRCharacterMovementComponent::ServerCheckClientErrorVR(float ClientTimeStamp, float DeltaTime, const FVector& Accel, const FVector& ClientWorldLocation, float ClientYaw, const FVector& RelativeClientLocation, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode)
+bool UVRCharacterMovementComponent::ServerCheckClientErrorVR(float ClientTimeStamp, float DeltaTime, const FVector& Accel, const FVector& ClientWorldLocation, FRotator ClientRot, const FVector& RelativeClientLocation, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode)
 {
 	// Check location difference against global setting
 	if (!bIgnoreClientMovementErrorChecksAndCorrection)
@@ -4226,15 +4227,21 @@ bool UVRCharacterMovementComponent::ServerCheckClientErrorVR(float ClientTimeSta
 	}
 
 	// If we are rolling back client rotation
-	if (!bUseClientControlRotation && !FMath::IsNearlyEqual(FRotator::ClampAxis(ClientYaw), FRotator::ClampAxis(UpdatedComponent->GetComponentRotation().Yaw), CharacterMovementComponentStatics::fRotationCorrectionThreshold))
+	//if (!bUseClientControlRotation && !FMath::IsNearlyEqual(FRotator::ClampAxis(ClientYaw), FRotator::ClampAxis(UpdatedComponent->GetComponentRotation().Yaw), CharacterMovementComponentStatics::fRotationCorrectionThreshold))
+	
+	if (!bUseClientControlRotation)
 	{
-		return true;
+		FRotator RelativeRotationDelta = UpdatedComponent->GetComponentRotation().Clamp() - ClientRot;
+		if (!RelativeRotationDelta.IsNearlyZero(CharacterMovementComponentStatics::fRotationCorrectionThreshold))
+		{
+			return true;
+		}
 	}
 
 	return false;
 }
 
-void UVRCharacterMovementComponent::ServerMoveHandleClientErrorVR(float ClientTimeStamp, float DeltaTime, const FVector& Accel, const FVector& RelativeClientLoc, float ClientYaw, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode)
+void UVRCharacterMovementComponent::ServerMoveHandleClientErrorVR(float ClientTimeStamp, float DeltaTime, const FVector& Accel, const FVector& RelativeClientLoc, FRotator ClientRot, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode)
 {
 	if (!ShouldUsePackedMovementRPCs())
 	{
@@ -4455,7 +4462,7 @@ void UVRCharacterMovementComponent::ServerMoveHandleClientErrorVR(float ClientTi
 	// Compute the client error from the server's position
 	// If client has accumulated a noticeable positional error, correct them.
 	bNetworkLargeClientCorrection = ServerData->bForceClientUpdate;
-	if (!bInClientAuthoritativeMovementMode && (ServerData->bForceClientUpdate || (!bFallingWithinAcceptableError && ServerCheckClientErrorVR(ClientTimeStamp, DeltaTime, Accel, ClientLoc, ClientYaw, RelativeClientLoc, ClientMovementBase, ClientBaseBoneName, ClientMovementMode))))
+	if (!bInClientAuthoritativeMovementMode && (ServerData->bForceClientUpdate || (!bFallingWithinAcceptableError && ServerCheckClientErrorVR(ClientTimeStamp, DeltaTime, Accel, ClientLoc, ClientRot, RelativeClientLoc, ClientMovementBase, ClientBaseBoneName, ClientMovementMode))))
 	{
 		//UPrimitiveComponent* MovementBase = CharacterOwner->GetMovementBase();
 		ServerData->PendingAdjustment.NewVel = Velocity;

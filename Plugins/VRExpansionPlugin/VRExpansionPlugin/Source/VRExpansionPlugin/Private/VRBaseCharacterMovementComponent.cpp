@@ -1000,6 +1000,13 @@ bool UVRBaseCharacterMovementComponent::DoMASnapTurn(FVRMoveActionContainer& Mov
 
 		bool bRotateAroundCapsule = MoveAction.MoveActionFlags & 0x08;
 
+		// Clamp to 2 decimal precision
+		TargetRot = TargetRot.Clamp();
+		TargetRot.Pitch = (TargetRot.Pitch * 100.f) / 100.f;
+		TargetRot.Yaw = (TargetRot.Yaw * 100.f) / 100.f;
+		TargetRot.Roll = (TargetRot.Roll * 100.f) / 100.f;
+		TargetRot.Normalize();
+
 		if (this->BaseVRCharacterOwner && this->BaseVRCharacterOwner->IsLocallyControlled())
 		{
 			if (this->bUseClientControlRotation)
@@ -1076,6 +1083,14 @@ bool UVRBaseCharacterMovementComponent::DoMASetRotation(FVRMoveActionContainer& 
 		FTransform OriginalRelativeTrans = BaseVRCharacterOwner->GetRootComponent()->GetRelativeTransform();
 
 		FRotator TargetRot(0.f, MoveAction.MoveActionRot.Yaw, 0.f);
+
+		// Clamp to 2 decimal precision
+		TargetRot = TargetRot.Clamp();
+		TargetRot.Pitch = (TargetRot.Pitch * 100.f) / 100.f;
+		TargetRot.Yaw = (TargetRot.Yaw * 100.f) / 100.f;
+		TargetRot.Roll = (TargetRot.Roll * 100.f) / 100.f;
+		TargetRot.Normalize();
+
 		if (this->BaseVRCharacterOwner && this->BaseVRCharacterOwner->IsLocallyControlled())
 		{
 			if (this->bUseClientControlRotation)
@@ -2292,6 +2307,13 @@ bool UVRBaseCharacterMovementComponent::SetCharacterToNewGravity(FVector NewGrav
 		FRotator OrigRotation = BaseVRCharacterOwner->bUseControllerRotationYaw && OwningController ? OwningController->GetControlRotation() : BaseVRCharacterOwner->GetActorRotation();
 
 		NewRotation = NewRot;
+
+		// Clamp to 2 decimal precision
+		NewRotation = NewRotation.Clamp();
+		NewRotation.Pitch = (NewRotation.Pitch * 100.f) / 100.f;
+		NewRotation.Yaw = (NewRotation.Yaw * 100.f) / 100.f;
+		NewRotation.Roll = (NewRotation.Roll * 100.f) / 100.f;
+		NewRotation.Normalize();
 
 		NewLocation = OrigLocation + OrigRotation.RotateVector(PivotPoint);
 		//NewRotation = NewRot;

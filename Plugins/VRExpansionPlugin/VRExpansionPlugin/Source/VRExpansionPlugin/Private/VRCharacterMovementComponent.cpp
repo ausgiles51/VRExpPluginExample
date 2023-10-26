@@ -4196,6 +4196,35 @@ bool UVRCharacterMovementComponent::ServerCheckClientErrorVR(float ClientTimeSta
 	{
 		//const FVector LocDiff = UpdatedComponent->GetComponentLocation() - ClientWorldLocation;
 
+
+	// If we are rolling back client rotation
+	//if (!bUseClientControlRotation && !FMath::IsNearlyEqual(FRotator::ClampAxis(ClientYaw), FRotator::ClampAxis(UpdatedComponent->GetComponentRotation().Yaw), CharacterMovementComponentStatics::fRotationCorrectionThreshold))
+
+		if (!bUseClientControlRotation)
+		{
+
+			if (GetGravityDirection() == DefaultGravityDirection)
+			{
+				if (!FMath::IsNearlyEqual(FRotator::ClampAxis(ClientRot.Yaw), FRotator::ClampAxis(UpdatedComponent->GetComponentRotation().Yaw), CharacterMovementComponentStatics::fRotationCorrectionThreshold))
+				{
+					GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Yellow, FString::Printf(TEXT("Client Rot %s"), *ClientRot.ToString()));
+					return true;
+				}
+			}
+			else
+			{
+				float CorrectionValue = bIsBlendingOrientation ? CharacterMovementComponentStatics::fRotationChangingCorrectionThreshold : CharacterMovementComponentStatics::fRotationCorrectionThreshold;
+
+				bIsBlendingOrientation = false;
+				if (FQuat::ErrorAutoNormalize(UpdatedComponent->GetComponentQuat(), ClientRot.Quaternion()) > CorrectionValue)//RelativeRotationDelta.IsNearlyZero(CharacterMovementComponentStatics::fRotationCorrectionThreshold))
+				{
+					GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Yellow, FString::Printf(TEXT("Client Rot %s"), *ClientRot.ToString()));
+					return true;
+				}
+			}
+		}
+
+
 #if ROOT_MOTION_DEBUG
 		if (RootMotionSourceDebug::CVarDebugRootMotionSources.GetValueOnAnyThread() == 1)
 		{
@@ -4232,31 +4261,6 @@ bool UVRCharacterMovementComponent::ServerCheckClientErrorVR(float ClientTimeSta
 			UE_LOG(LogVRCharacterMovement, Warning, TEXT("*** Server: %s is set to ignore error checks and corrections."), *GetNameSafe(CharacterOwner));
 		}
 #endif // !UE_BUILD_SHIPPING
-	}
-
-	// If we are rolling back client rotation
-	//if (!bUseClientControlRotation && !FMath::IsNearlyEqual(FRotator::ClampAxis(ClientYaw), FRotator::ClampAxis(UpdatedComponent->GetComponentRotation().Yaw), CharacterMovementComponentStatics::fRotationCorrectionThreshold))
-	
-	if (!bUseClientControlRotation)
-	{
-
-		if (GetGravityDirection() == DefaultGravityDirection)
-		{
-			if (!FMath::IsNearlyEqual(FRotator::ClampAxis(ClientRot.Yaw), FRotator::ClampAxis(UpdatedComponent->GetComponentRotation().Yaw), CharacterMovementComponentStatics::fRotationCorrectionThreshold))
-			{
-				return true;
-			}
-		}
-		else
-		{
-			float CorrectionValue = bIsBlendingOrientation ? CharacterMovementComponentStatics::fRotationChangingCorrectionThreshold : CharacterMovementComponentStatics::fRotationCorrectionThreshold;
-
-			bIsBlendingOrientation = false;
-			if (FQuat::ErrorAutoNormalize(UpdatedComponent->GetComponentQuat(), ClientRot.Quaternion()) > CorrectionValue)//RelativeRotationDelta.IsNearlyZero(CharacterMovementComponentStatics::fRotationCorrectionThreshold))
-			{
-				return true;
-			}
-		}
 	}
 
 	return false;

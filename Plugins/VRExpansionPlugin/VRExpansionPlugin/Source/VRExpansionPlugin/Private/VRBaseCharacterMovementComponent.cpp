@@ -2298,13 +2298,13 @@ bool UVRBaseCharacterMovementComponent::SetCharacterToNewGravity(FVector NewGrav
 		FVector NewLocation;
 		FRotator NewRotation;
 		FVector OrigLocation = BaseVRCharacterOwner->GetActorLocation();
-		FVector PivotPoint = BaseVRCharacterOwner->GetActorTransform().InverseTransformPosition(BaseVRCharacterOwner->GetVRLocation_Inline());
+		FVector PivotPoint = BaseVRCharacterOwner->bRetainRoomscale ? BaseVRCharacterOwner->GetActorTransform().InverseTransformPosition(BaseVRCharacterOwner->GetVRLocation_Inline()) : FVector::ZeroVector;
 		//(bRotateAroundCapsule ? GetVRLocation_Inline() : BaseVRCharacterOwner->GetProjectedVRLocation());
 
 
 		// Offset to the floor
 		//PivotPoint.Z = -BaseVRCharacterOwner->VRRootReference->GetUnscaledCapsuleHalfHeight();
-		PivotPoint.Z = 0.0f;
+		PivotPoint.Z = BaseVRCharacterOwner->bRetainRoomscale ? 0.0f : -BaseVRCharacterOwner->VRRootReference->GetUnscaledCapsuleHalfHeight();
 
 		// Need to seperate out each element for the control rotation
 		FRotator OrigRotation = BaseVRCharacterOwner->bUseControllerRotationYaw && OwningController ? OwningController->GetControlRotation() : BaseVRCharacterOwner->GetActorRotation();

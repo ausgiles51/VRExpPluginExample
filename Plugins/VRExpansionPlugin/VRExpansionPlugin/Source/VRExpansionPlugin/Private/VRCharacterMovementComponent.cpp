@@ -84,6 +84,14 @@ namespace CharacterMovementComponentStatics
 		TEXT("Error threshold value before correcting a clients rotation.\n")
 		TEXT("Rotation is replicated at 2 decimal precision, so values less than 0.01 won't matter."),
 		ECVF_Default);
+
+	static float fRotationChangingCorrectionThreshold = 1.0f;
+	FAutoConsoleVariableRef CVarRotationChangingCorrectionThreshold(
+		TEXT("vre.RotationChangingCorrectionThreshold"),
+		fRotationChangingCorrectionThreshold,
+		TEXT("Error threshold value before correcting a clients rotation when actively changing rotation.\n")
+		TEXT("Rotation is replicated at 2 decimal precision, so values less than 0.01 won't matter."),
+		ECVF_Default);
 }
 
 void UVRCharacterMovementComponent::StoreSetTrackingPaused(bool bNewTrackingPaused)
@@ -1923,7 +1931,7 @@ bool UVRCharacterMovementComponent::StepUp(const FVector& GravDir, const FVector
 			{
 				// Auto Align to the new floor normal
 				// Set gravity direction to the new floor normal, don't blend the change, snap to it on a step up
-				AutoTraceAndSetCharacterToNewGravity(StepDownResult.FloorResult.HitResult, 0.0f);
+				AutoTraceAndSetCharacterToNewGravity(StepDownResult.FloorResult.HitResult);
 			}
 		}
 	}
@@ -2164,7 +2172,7 @@ bool UVRCharacterMovementComponent::VRClimbStepUp(const FVector& GravDir, const 
 			{
 				// Auto Align to the new floor normal
 				// Set gravity direction to the new floor normal, don't blend the change, snap to it on a step down
-				AutoTraceAndSetCharacterToNewGravity(StepDownResult.FloorResult.HitResult, 0.0f);
+				AutoTraceAndSetCharacterToNewGravity(StepDownResult.FloorResult.HitResult);
 			}
 		}
 	}
@@ -4160,7 +4168,7 @@ void UVRCharacterMovementComponent::ClientAdjustPositionVR_Implementation
 				// Auto Align to the new floor normal
 				// Set gravity direction to the new floor normal, snap to new rotation on correction
 				// #TODO: Might need to entirely remove this and let the correction set everything?
-				AutoTraceAndSetCharacterToNewGravity(CurrentFloor.HitResult, 0.0f);
+				AutoTraceAndSetCharacterToNewGravity(CurrentFloor.HitResult);
 			}*/
 		}
 	}
@@ -4231,10 +4239,23 @@ bool UVRCharacterMovementComponent::ServerCheckClientErrorVR(float ClientTimeSta
 	
 	if (!bUseClientControlRotation)
 	{
-		FRotator RelativeRotationDelta = UpdatedComponent->GetComponentRotation().Clamp() - ClientRot;
-		if (!RelativeRotationDelta.IsNearlyZero(CharacterMovementComponentStatics::fRotationCorrectionThreshold))
+
+		if (GetGravityDirection() == DefaultGravityDirection)
 		{
-			return true;
+			if (!FMath::IsNearlyEqual(FRotator::ClampAxis(ClientRot.Yaw), FRotator::ClampAxis(UpdatedComponent->GetComponentRotation().Yaw), CharacterMovementComponentStatics::fRotationCorrectionThreshold))
+			{
+				return true;
+			}
+		}
+		else
+		{
+			float CorrectionValue = bIsBlendingOrientation ? CharacterMovementComponentStatics::fRotationChangingCorrectionThreshold : CharacterMovementComponentStatics::fRotationCorrectionThreshold;
+
+			bIsBlendingOrientation = false;
+			if (FQuat::ErrorAutoNormalize(UpdatedComponent->GetComponentQuat(), ClientRot.Quaternion()) > CorrectionValue)//RelativeRotationDelta.IsNearlyZero(CharacterMovementComponentStatics::fRotationCorrectionThreshold))
+			{
+				return true;
+			}
 		}
 	}
 

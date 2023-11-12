@@ -2251,7 +2251,8 @@ void UVRBaseCharacterMovementComponent::AutoTraceAndSetCharacterToNewGravity(FHi
 
 		FHitResult OutHit;
 		const bool bDidHit = TargetFloor.Component->LineTraceComponent(OutHit, TraceStart, TraceStart + Offset, QueryParams);
-
+		//DrawDebugLine(GetWorld(), TraceStart, TraceStart + Offset, FColor::Red, true);
+		//DrawDebugCapsule(GetWorld(), BaseVRCharacterOwner->GetVRLocation(), BaseVRCharacterOwner->VRRootReference->GetScaledCapsuleHalfHeight(), 5.0f, BaseVRCharacterOwner->VRRootReference->GetComponentQuat(), FColor::Green, true);
 		if (bDidHit)
 		{
 			FVector NewGravityDir = -OutHit.Normal;
@@ -2295,38 +2296,44 @@ bool UVRBaseCharacterMovementComponent::SetCharacterToNewGravity(FVector NewGrav
 		FRotator NewRot = (DeltaRot * CurrentRotQ)/*.GetNormalized()*/.Rotator();
 		AController* OwningController = BaseVRCharacterOwner->GetController();
 
-		FVector NewLocation;
+		//FVector NewLocation;
 		FRotator NewRotation;
-		FVector OrigLocation = BaseVRCharacterOwner->GetActorLocation();
-		FVector PivotPoint = BaseVRCharacterOwner->bRetainRoomscale ? BaseVRCharacterOwner->GetActorTransform().InverseTransformPosition(BaseVRCharacterOwner->GetVRLocation_Inline()) : FVector::ZeroVector;
-		//(bRotateAroundCapsule ? GetVRLocation_Inline() : BaseVRCharacterOwner->GetProjectedVRLocation());
+		float PivotZ = BaseVRCharacterOwner->bRetainRoomscale ? 0.0f : -BaseVRCharacterOwner->VRRootReference->GetUnscaledCapsuleHalfHeight();
 
-
-		// Offset to the floor
-		//PivotPoint.Z = -BaseVRCharacterOwner->VRRootReference->GetUnscaledCapsuleHalfHeight();
-		PivotPoint.Z = BaseVRCharacterOwner->bRetainRoomscale ? 0.0f : -BaseVRCharacterOwner->VRRootReference->GetUnscaledCapsuleHalfHeight();
-
-		// Need to seperate out each element for the control rotation
-		FRotator OrigRotation = BaseVRCharacterOwner->bUseControllerRotationYaw && OwningController ? OwningController->GetControlRotation() : BaseVRCharacterOwner->GetActorRotation();
+		//DrawDebugSphere(GetWorld(), OrigLocation, 10.0f, 12.0f, FColor::White, true);
+		//DrawDebugSphere(GetWorld(), OrigLocation, 10.0f, 12.0f, FColor::Orange, true);
 
 		NewRotation = NewRot;
 
 		// Clamp to 2 decimal precision
 		/*NewRotation = NewRotation.Clamp();
-		NewRotation.Pitch = (NewRotation.Pitch * 100.f) / 100.f;
-		NewRotation.Yaw = (NewRotation.Yaw * 100.f) / 100.f;
-		NewRotation.Roll = (NewRotation.Roll * 100.f) / 100.f;*/
+		//NewRotation.Pitch = (NewRotation.Pitch * 100.f) / 100.f;
+		//NewRotation.Yaw = (NewRotation.Yaw * 100.f) / 100.f;
+		//NewRotation.Roll = (NewRotation.Roll * 100.f) / 100.f;*/
 		NewRotation.Normalize();
 
-		NewLocation = OrigLocation + OrigRotation.RotateVector(PivotPoint);
-		//NewRotation = NewRot;
-		NewLocation -= NewRotation.RotateVector(PivotPoint);
+		FTransform BaseTransform = BaseVRCharacterOwner->VRRootReference->GetComponentTransform();
+		FVector PivotPoint = BaseTransform.TransformPosition(FVector(0.0f, 0.0f, PivotZ));
+
+
+		FVector BasePoint = PivotPoint; // Get our pivot point
+		const FTransform PivotToWorld = FTransform(FQuat::Identity, BasePoint);
+		const FTransform WorldToPivot = FTransform(FQuat::Identity, -BasePoint);
+
+		// Rebase the world transform to the pivot point, add the rotation, remove the pivot point rebase
+		FTransform NewTransform = BaseTransform * WorldToPivot * FTransform(DeltaRot, FVector::ZeroVector, FVector(1.0f)) * PivotToWorld;
+
+		//FVector NewLoc = BaseVRCharacterOwner->VRRootReference->OffsetComponentToWorld.InverseTransformPosition(PivotPoint);
+		//GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, FString::Printf(TEXT("NewLoc %s"), *NewLoc.ToString()));
+
+		//DrawDebugLine(GetWorld(), OrigLocation, OrigLocation + ((-NewGravityDirection) * 40.0f), FColor::Red, true);
+
+		// Also setting actor rot because the control rot transfers to it anyway eventually
+		MoveUpdatedComponent(NewTransform.GetLocation()/*NewLocation*/ - BaseTransform.GetLocation(), NewRotation, /*bSweep*/ false);
 
 		if (BaseVRCharacterOwner->bUseControllerRotationYaw && OwningController)
 			OwningController->SetControlRotation(NewRotation);
 
-		// Also setting actor rot because the control rot transfers to it anyway eventually
-		MoveUpdatedComponent(NewLocation - OrigLocation, NewRotation, /*bSweep*/ false);
 		//BaseVRCharacterOwner->SetActorLocationAndRotation(NewLocation, NewRotation);
 		return true;
 	}

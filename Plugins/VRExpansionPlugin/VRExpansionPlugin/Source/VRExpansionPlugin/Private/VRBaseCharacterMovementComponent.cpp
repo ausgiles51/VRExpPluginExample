@@ -2251,8 +2251,8 @@ void UVRBaseCharacterMovementComponent::AutoTraceAndSetCharacterToNewGravity(FHi
 
 		FHitResult OutHit;
 		const bool bDidHit = TargetFloor.Component->LineTraceComponent(OutHit, TraceStart, TraceStart + Offset, QueryParams);
-		//DrawDebugLine(GetWorld(), TraceStart, TraceStart + Offset, FColor::Red, true);
-		//DrawDebugCapsule(GetWorld(), BaseVRCharacterOwner->GetVRLocation(), BaseVRCharacterOwner->VRRootReference->GetScaledCapsuleHalfHeight(), 5.0f, BaseVRCharacterOwner->VRRootReference->GetComponentQuat(), FColor::Green, true);
+		DrawDebugLine(GetWorld(), TraceStart, TraceStart + Offset, FColor::Red, true);
+		DrawDebugCapsule(GetWorld(), BaseVRCharacterOwner->GetVRLocation(), BaseVRCharacterOwner->VRRootReference->GetScaledCapsuleHalfHeight(), 5.0f, BaseVRCharacterOwner->VRRootReference->GetComponentQuat(), FColor::Green, true);
 		if (bDidHit)
 		{
 			FVector NewGravityDir = -OutHit.Normal;
@@ -2300,9 +2300,6 @@ bool UVRBaseCharacterMovementComponent::SetCharacterToNewGravity(FVector NewGrav
 		FRotator NewRotation;
 		float PivotZ = BaseVRCharacterOwner->bRetainRoomscale ? 0.0f : -BaseVRCharacterOwner->VRRootReference->GetUnscaledCapsuleHalfHeight();
 
-		//DrawDebugSphere(GetWorld(), OrigLocation, 10.0f, 12.0f, FColor::White, true);
-		//DrawDebugSphere(GetWorld(), OrigLocation, 10.0f, 12.0f, FColor::Orange, true);
-
 		NewRotation = NewRot;
 
 		// Clamp to 2 decimal precision
@@ -2315,6 +2312,8 @@ bool UVRBaseCharacterMovementComponent::SetCharacterToNewGravity(FVector NewGrav
 		FTransform BaseTransform = BaseVRCharacterOwner->VRRootReference->GetComponentTransform();
 		FVector PivotPoint = BaseTransform.TransformPosition(FVector(0.0f, 0.0f, PivotZ));
 
+		DrawDebugSphere(GetWorld(), BaseVRCharacterOwner->GetVRLocation(), 10.0f, 12.0f, FColor::White, true);
+		DrawDebugSphere(GetWorld(), PivotPoint, 10.0f, 12.0f, FColor::Orange, true);
 
 		FVector BasePoint = PivotPoint; // Get our pivot point
 		const FTransform PivotToWorld = FTransform(FQuat::Identity, BasePoint);
